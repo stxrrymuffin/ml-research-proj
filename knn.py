@@ -11,6 +11,13 @@ def split():
     train_df.to_csv('bean_training.csv', index=False)
     test_df.to_csv('bean_testing.csv', index=False)
 
+def smaller_split():
+    df = pd.read_csv('bean_training.csv')
+    small_train = df.groupby('Class', group_keys=False).apply(lambda x: x.sample(frac=0.5))
+    train_df, test_df = train_test_split(small_train, test_size=0.2, random_state=42)
+    train_df.to_csv('bean_small_training.csv', index=False)
+    test_df.to_csv('bean_small_testing.csv', index=False)
+
 def knn(training, testing, K, weight):
     attributes = [col for col in training.columns if col != "Class"]
     correct = 0
@@ -23,9 +30,9 @@ def knn(training, testing, K, weight):
             dist = dist**0.5
             dist_lst += [(idx2,dist)]
         sorted_dist_lst = sorted(dist_lst, key=lambda x: x[1])
-        majority_class = statistics.mode([training.iloc[val[0]]["Class"] for val in sorted_dist_lst[:K]])
+        majority_class = statistics.mode([training.loc[val[0]]["Class"] for val in sorted_dist_lst[:K]])
         
-        if majority_class == testing.iloc[idx]['Class']:
+        if majority_class == testing.loc[idx]['Class']:
             correct+=1
         #print(f"{[float(val) for val in testing.iloc[idx].drop('class').to_list()]} -- predicted: {majority_class}; actual: {testing.iloc[idx]['class']}")
     
@@ -34,8 +41,7 @@ def knn(training, testing, K, weight):
     return accuracy
 
 def fitness_function(training_data, testing_data, k, weight, alpha=0.9):
-    small_train = training_data.groupby('Class', group_keys=False).apply(lambda x: x.sample(frac=0.2))
-    train_df, test_df = train_test_split(small_train, test_size=0.2, random_state=42)
+
     acc = knn(train_df, test_df, k, weight)
     return alpha * (1 - acc) + (1 - alpha) * (k / len(training_data))
 
@@ -114,9 +120,9 @@ class GWO_KNN:
         best = self.wolves[idx[0]]
         best_k = int(round(best[0]))
         return best_k
+smaller_split()
+#gwo = GWO_KNN(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), n_wolves=12, n_iter=5, k_max=50, weight=2)
+#best_k = gwo.optimize()
+#print(best_k)
 
-gwo = GWO_KNN(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), n_wolves=5, n_iter=3, k_max=50, weight=2)
-best_k = gwo.optimize()
-print(best_k)
-
-#knn("bean_training.csv","bean_testing.csv", best_k, best_weights)
+#knn(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), best_k, 2)
