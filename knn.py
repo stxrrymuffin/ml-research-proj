@@ -16,9 +16,10 @@ def split():
 def smaller_split():
     df = pd.read_csv('bean_training.csv')
     small_train = df.groupby('Class', group_keys=False).apply(lambda x: x.sample(frac=0.5))
-    train_df, test_df = train_test_split(small_train, test_size=0.2, random_state=42)
-    train_df.to_csv('bean_small_training.csv', index=False)
-    test_df.to_csv('bean_small_testing.csv', index=False)
+    #train_df, test_df = train_test_split(small_train, test_size=0.2, random_state=42)
+    #train_df.to_csv('bean_small_training.csv', index=False)
+    #test_df.to_csv('bean_small_testing.csv', index=False)
+    small_train.to_csv('bean_small.csv', index=False)
 
 def knn(training, testing, K, weight):
     attributes = [col for col in training.columns if col != "Class"]
@@ -141,7 +142,8 @@ class GWO_KNN:
         best = self.wolves[idx[0]]
         best_k = int(round(best[0]))
         return best_k
-gwo = GWO_KNN(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), n_wolves=12, n_iter=5, k_max=50, weight=2)
+
+gwo = GWO_KNN(pd.read_csv("bean_small.csv"),pd.read_csv("bean_testing.csv"), n_wolves=3, n_iter=5, k_max=50, weight=2)
 best_k = gwo.optimize()
 print(best_k)
 
