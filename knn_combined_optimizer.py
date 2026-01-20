@@ -131,7 +131,7 @@ class GWO_KNN:
         best_weight = best[1]
         return best_k, best_weight
 
-gwo = GWO_KNN(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), n_wolves=12, n_iter=5, k_max=50, weight_max=3)
+gwo = GWO_KNN(pd.read_csv("bean_small.csv"),pd.read_csv("bean_testing.csv"), n_wolves=6, n_iter=5, k_max=50, weight_max=3)
 best_k, best_weight = gwo.optimize()
 
 print(best_k)
