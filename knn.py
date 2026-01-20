@@ -4,6 +4,7 @@ from sklearn.metrics import accuracy_score
 import statistics
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import confusion_matrix
 
 def split():
     df = pd.read_csv('Dry_Bean_Dataset.csv')
@@ -22,6 +23,7 @@ def smaller_split():
 def knn(training, testing, K, weight):
     attributes = [col for col in training.columns if col != "Class"]
     correct = 0
+    predictions = []
     for idx, row in testing.iterrows():
         dist_lst = []
         for idx2, row2 in training.iterrows():
@@ -33,10 +35,13 @@ def knn(training, testing, K, weight):
         sorted_dist_lst = sorted(dist_lst, key=lambda x: x[1])
         majority_class = statistics.mode([training.loc[val[0]]["Class"] for val in sorted_dist_lst[:K]])
         
+        predictions += [majority_class]
         if majority_class == testing.loc[idx]['Class']:
             correct+=1
-        #print(f"{[float(val) for val in testing.iloc[idx].drop('class').to_list()]} -- predicted: {majority_class}; actual: {testing.iloc[idx]['class']}")
-    
+        
+    y_pred = testing['Class']
+    cm = confusion_matrix(y_pred, predictions)
+    print(cm)
     accuracy = correct / len(testing)
     print(f"\nAccuracy: {accuracy:.3f}")
     return accuracy

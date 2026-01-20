@@ -3,6 +3,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import statistics
 import numpy as np
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import confusion_matrix
 
 def split():
     df = pd.read_csv('Dry_Bean_Dataset.csv')
@@ -14,6 +16,7 @@ def split():
 def knn(training, testing, K, weight):
     attributes = [col for col in training.columns if col != "Class"]
     correct = 0
+    predictions = []
     for idx, row in testing.iterrows():
         dist_lst = []
         for idx2, row2 in training.iterrows():
@@ -25,17 +28,35 @@ def knn(training, testing, K, weight):
         sorted_dist_lst = sorted(dist_lst, key=lambda x: x[1])
         majority_class = statistics.mode([training.loc[val[0]]["Class"] for val in sorted_dist_lst[:K]])
         
+        predictions += [majority_class]
         if majority_class == testing.loc[idx]['Class']:
             correct+=1
-        #print(f"{[float(val) for val in testing.iloc[idx].drop('class').to_list()]} -- predicted: {majority_class}; actual: {testing.iloc[idx]['class']}")
-    
+        
+    y_pred = testing['Class']
+    cm = confusion_matrix(y_pred, predictions)
+    print(cm)
     accuracy = correct / len(testing)
     print(f"\nAccuracy: {accuracy:.3f}")
     return accuracy
 
 def fitness_function(training_data, testing_data, k, weight, alpha=0.9):
-    acc = knn(pd.read_csv('bean_small_training.csv'), pd.read_csv('bean_small_testing.csv'), k, weight)
-    return alpha * (1 - acc) + (1 - alpha) * (k / len(training_data))
+    X = training_data.drop(columns=['Class'])
+    y = training_data['Class']
+
+    k_folds = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+
+    accuracies = []
+
+    for train_index, test_index in k_folds.split(X, y):
+        train_df = training_data.iloc[train_index]
+        test_df = training_data.iloc[test_index]
+
+        acc = knn(train_df, test_df, k, weight)
+        accuracies.append(acc)
+
+    mean_acc = np.mean(accuracies)
+    print(f"mean accuracy: {mean_acc}")
+    return alpha * (1 - mean_acc) + (1 - alpha) * (k / len(training_data))
 
 class GWO_KNN:
     def __init__(
