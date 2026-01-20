@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import statistics
 import numpy as np
+from sklearn.model_selection import StratifiedKFold
 
 def split():
     df = pd.read_csv('Dry_Bean_Dataset.csv')
@@ -41,9 +42,23 @@ def knn(training, testing, K, weight):
     return accuracy
 
 def fitness_function(training_data, testing_data, k, weight, alpha=0.9):
+    X = training_data.drop(columns=['Class'])
+    y = training_data['Class']
 
-    acc = knn(train_df, test_df, k, weight)
-    return alpha * (1 - acc) + (1 - alpha) * (k / len(training_data))
+    k_folds = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+
+    accuracies = []
+
+    for train_index, test_index in k_folds.split(X, y):
+        train_df = training_data.iloc[train_index]
+        test_df = training_data.iloc[test_index]
+
+        acc = knn(train_df, test_df, k, weight)
+        accuracies.append(acc)
+
+    mean_acc = np.mean(accuracies)
+    print(f"mean accuracy: {mean_acc}")
+    return alpha * (1 - mean_acc) + (1 - alpha) * (k / len(training_data))
 
 class GWO_KNN:
     def __init__(
@@ -72,6 +87,7 @@ class GWO_KNN:
         wolves = []
         for _ in range(self.n_wolves):
             k = np.random.uniform(1, self.k_max)
+            print(k)
             wolves.append((np.array([k])))
         return np.array(wolves)
 
@@ -120,9 +136,8 @@ class GWO_KNN:
         best = self.wolves[idx[0]]
         best_k = int(round(best[0]))
         return best_k
-smaller_split()
-#gwo = GWO_KNN(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), n_wolves=12, n_iter=5, k_max=50, weight=2)
-#best_k = gwo.optimize()
-#print(best_k)
+gwo = GWO_KNN(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), n_wolves=12, n_iter=5, k_max=50, weight=2)
+best_k = gwo.optimize()
+print(best_k)
 
-#knn(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), best_k, 2)
+knn(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), best_k, 2)

@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import statistics
 import numpy as np
+from sklearn.model_selection import StratifiedKFold
 
 def split():
     df = pd.read_csv('Dry_Bean_Dataset.csv')
@@ -19,7 +20,7 @@ def knn(training, testing, K, weight):
         for idx2, row2 in training.iterrows():
             dist = 0
             for attr in attributes:
-                dist += (abs(float(row2[attr])-float(row[attr])))**weight
+                dist += abs(float(row2[attr])-float(row[attr]))**weight
             dist = dist**0.5
             dist_lst += [(idx2,dist)]
         sorted_dist_lst = sorted(dist_lst, key=lambda x: x[1])
@@ -34,47 +35,58 @@ def knn(training, testing, K, weight):
     return accuracy
 
 def fitness_function(training_data, testing_data, k, weight, alpha=0.9):
-    acc = knn(pd.read_csv('bean_small_training.csv'), pd.read_csv('bean_small_testing.csv'), k, weight)
-    return alpha * (1 - acc) + (1 - alpha) * (k / len(training_data))
+    X = training_data.drop(columns=['Class'])
+    y = training_data['Class']
+
+    k_folds = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+
+    accuracies = []
+
+    for train_index, test_index in k_folds.split(X, y):
+        train_df = training_data.iloc[train_index]
+        test_df = training_data.iloc[test_index]
+
+        acc = knn(train_df, test_df, k, weight)
+        accuracies.append(acc)
+
+    mean_acc = np.mean(accuracies)
+    print(f"mean accuracy: {mean_acc}")
+    return alpha * (1 - mean_acc) + (1 - alpha) * (k / len(training_data))
 
 class GWO_KNN:
     def __init__(
         self,
         training_data,
         testing_data,
-        k=10,
         n_wolves=5,
         n_iter=40,
-        weight_max=3,
+        k_max=50,
+        weight_min=0.5,
+        weight_max=3.0,
         a_max=2.5,
         a_min=0.2,
     ):
         self.training_data = training_data
         self.testing_data = testing_data
-        self.k = k 
         self.n_wolves = n_wolves
         self.n_iter = n_iter
+        self.k_max = k_max
+        self.weight_min = weight_min
         self.weight_max = weight_max
         self.a_max = a_max
         self.a_min = a_min
-        self.dim = training_data.shape[1]
         self.wolves = self._init_wolves()
 
     def _init_wolves(self):
         wolves = []
         for _ in range(self.n_wolves):
-            weight = np.random.uniform(0.5, self.weight_max)
-            wolves.append((np.array([weight])))
+            k = np.random.uniform(1, self.k_max)
+            weight = np.random.uniform(self.weight_min, self.weight_max)
+            wolves.append(np.array([k, weight]))
         return np.array(wolves)
 
     def _linear_a(self, t):
         return self.a_max - (self.a_max - self.a_min) * (t / self.n_iter)
-    
-    def select_k(self):
-        return
-    
-    def select_weight(self):
-        return
 
     def optimize(self):
         for t in range(self.n_iter):
@@ -82,10 +94,10 @@ class GWO_KNN:
 
             fitness = []
             for wolf in self.wolves:
-                weight = np.clip(wolf[0], 0.3, self.weight_max)
-                print(weight)
+                k = int(np.clip(round(wolf[0]), 1, self.k_max))
+                weight = np.clip(wolf[1], self.weight_min, self.weight_max)
                 fitness.append(
-                    fitness_function(self.training_data, self.testing_data, self.k, weight)
+                    fitness_function(self.training_data, self.testing_data, k, weight)
                 )
 
             fitness = np.array(fitness)
@@ -106,16 +118,18 @@ class GWO_KNN:
                     self.wolves[i] = (self.wolves[i] + X_new) / 2
 
                 # Constraints
-                self.wolves[i][0] = np.clip(self.wolves[i][0], 0.5, self.weight_max)
-                self.wolves[i][1:] = np.clip(self.wolves[i][1:], 0, 1)
-                self.wolves[i][1:] /= np.sum(self.wolves[i][1:])
+                self.wolves[i][0] = np.clip(self.wolves[i][0], 1, self.k_max)
+                self.wolves[i][1] = np.clip(self.wolves[i][1], self.weight_min, self.weight_max)
 
         best = self.wolves[idx[0]]
-        best_weight = best[0]
-        return best_weight
+        best_k = int(round(best[0]))
+        best_weight = best[1]
+        return best_k, best_weight
 
-gwo = GWO_KNN(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), n_wolves=12, n_iter=5, weight_max=3, k=44)
-best_weight = gwo.optimize()
+gwo = GWO_KNN(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), n_wolves=12, n_iter=10, k_max=50, weight_max=3)
+best_k, best_weight = gwo.optimize()
+
+print(best_k)
 print(best_weight)
 
-knn(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), 44, best_weight)
+print(knn(pd.read_csv("bean_training.csv"),pd.read_csv("bean_testing.csv"), best_k, best_weight))
